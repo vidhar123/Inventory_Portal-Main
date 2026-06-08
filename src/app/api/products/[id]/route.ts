@@ -26,6 +26,8 @@ async function toClientProduct(record: ProductRecord): Promise<Product> {
 
   return {
     id: record.id,
+    manufacturerId: record.manufacturerId,
+    manufacturerName: record.manufacturerName,
     name: record.name,
     sku: record.sku,
     category: record.category,
@@ -54,6 +56,13 @@ function parsePatch(body: Record<string, unknown>): Partial<ProductInput> {
           ? body[field].trim().toUpperCase()
           : body[field].trim();
     }
+  }
+
+  if (body.manufacturerId !== undefined) {
+    if (body.manufacturerId !== null && typeof body.manufacturerId !== "string") {
+      throw new Error("manufacturerId must be a string.");
+    }
+    patch.manufacturerId = body.manufacturerId || null;
   }
 
   const numberFields = ["price", "cost", "quantity", "reorderLevel"] as const;

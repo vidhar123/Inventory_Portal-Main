@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { StatCard } from "@/components/StatCard";
 import { Badge } from "@/components/Badge";
 import { ProductThumb } from "@/components/ProductThumb";
-import { BoxIcon, DollarIcon, AlertIcon, LayersIcon, PlusIcon } from "@/components/icons";
+import { BoxIcon, DollarIcon, AlertIcon, LayersIcon } from "@/components/icons";
 import { formatCurrency, formatNumber, stockLevel } from "@/lib/utils";
 import { CATEGORIES } from "@/lib/types";
 
@@ -57,14 +57,7 @@ export default function DashboardPage() {
       <PageHeader
         title="Dashboard"
         subtitle="Overview of your inventory health and value."
-      >
-        <Link
-          href="/products/add"
-          className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-brand-500/30 transition hover:bg-brand-600"
-        >
-          <PlusIcon className="h-4 w-4" /> New Product
-        </Link>
-      </PageHeader>
+      />
 
       {error && (
         <div className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">

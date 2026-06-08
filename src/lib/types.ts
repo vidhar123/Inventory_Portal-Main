@@ -1,7 +1,15 @@
 export type ProductStatus = "active" | "draft" | "archived";
 
+export interface Manufacturer {
+  id: string;
+  name: string;
+  createdAt?: string;
+}
+
 export interface Product {
   id: string;
+  manufacturerId: string | null;
+  manufacturerName: string | null;
   name: string;
   sku: string;
   category: string;

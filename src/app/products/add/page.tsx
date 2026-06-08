@@ -10,6 +10,7 @@ import { CATEGORIES, ProductStatus } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 
 type FormState = {
+  manufacturerId: string;
   name: string;
   sku: string;
   category: string;
@@ -23,6 +24,7 @@ type FormState = {
 };
 
 const initialForm: FormState = {
+  manufacturerId: "",
   name: "",
   sku: "",
   category: CATEGORIES[0],
@@ -41,7 +43,7 @@ const inputClass =
 
 export default function AddProductPage() {
   const router = useRouter();
-  const { addProduct } = useInventory();
+  const { addProduct, manufacturers } = useInventory();
   const [form, setForm] = useState<FormState>(initialForm);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -52,6 +54,7 @@ export default function AddProductPage() {
 
   function validate() {
     const e: Record<string, string> = {};
+    if (!form.manufacturerId) e.manufacturerId = "Manufacturer is required.";
     if (!form.name.trim()) e.name = "Product name is required.";
     if (!form.sku.trim()) e.sku = "SKU is required.";
     if (form.price === "" || Number(form.price) < 0)
@@ -69,6 +72,7 @@ export default function AddProductPage() {
     if (!validate()) return;
 
     const formData = new FormData();
+    formData.set("manufacturerId", form.manufacturerId);
     formData.set("name", form.name.trim());
     formData.set("sku", form.sku.trim().toUpperCase());
     formData.set("category", form.category);
@@ -128,6 +132,30 @@ export default function AddProductPage() {
               Product details
             </h2>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <label className={labelClass}>Manufacturer</label>
+                <select
+                  className={cn(
+                    inputClass,
+                    errors.manufacturerId && "border-rose-400"
+                  )}
+                  value={form.manufacturerId}
+                  onChange={(e) => set("manufacturerId", e.target.value)}
+                >
+                  <option value="">Select manufacturer</option>
+                  {manufacturers.map((manufacturer) => (
+                    <option key={manufacturer.id} value={manufacturer.id}>
+                      {manufacturer.name}
+                    </option>
+                  ))}
+                </select>
+                {errors.manufacturerId && (
+                  <p className="mt-1 text-xs text-rose-600">
+                    {errors.manufacturerId}
+                  </p>
+                )}
+              </div>
+
               <div className="sm:col-span-2">
                 <label className={labelClass}>Product name</label>
                 <input

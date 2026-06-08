@@ -3,6 +3,8 @@ import { Product } from "./types";
 export const seedProducts: Product[] = [
   {
     id: "p-1001",
+    manufacturerId: "1",
+    manufacturerName: "ABC",
     name: "Aurora Wireless Headphones",
     sku: "ELEC-AWH-01",
     category: "Electronics",
@@ -18,6 +20,8 @@ export const seedProducts: Product[] = [
   },
   {
     id: "p-1002",
+    manufacturerId: "2",
+    manufacturerName: "BCD",
     name: "Terra Stainless Water Bottle",
     sku: "HOME-TSB-22",
     category: "Home & Kitchen",
@@ -32,6 +36,8 @@ export const seedProducts: Product[] = [
   },
   {
     id: "p-1003",
+    manufacturerId: "3",
+    manufacturerName: "CDE",
     name: "Vertex Running Shoes",
     sku: "SPRT-VRS-09",
     category: "Sports",
@@ -46,6 +52,8 @@ export const seedProducts: Product[] = [
   },
   {
     id: "p-1004",
+    manufacturerId: "4",
+    manufacturerName: "DEF",
     name: "Lumen Desk Lamp",
     sku: "OFFC-LDL-14",
     category: "Office",
@@ -60,6 +68,8 @@ export const seedProducts: Product[] = [
   },
   {
     id: "p-1005",
+    manufacturerId: "5",
+    manufacturerName: "EFI",
     name: "Cloud Cotton T-Shirt",
     sku: "APRL-CCT-07",
     category: "Apparel",
@@ -74,6 +84,8 @@ export const seedProducts: Product[] = [
   },
   {
     id: "p-1006",
+    manufacturerId: "1",
+    manufacturerName: "ABC",
     name: "Glow Vitamin C Serum",
     sku: "BEUT-GVS-03",
     category: "Beauty",
@@ -88,6 +100,8 @@ export const seedProducts: Product[] = [
   },
   {
     id: "p-1007",
+    manufacturerId: "2",
+    manufacturerName: "BCD",
     name: "PixelPlay Building Blocks",
     sku: "TOYS-PBB-18",
     category: "Toys",
@@ -102,6 +116,8 @@ export const seedProducts: Product[] = [
   },
   {
     id: "p-1008",
+    manufacturerId: "3",
+    manufacturerName: "CDE",
     name: "Nimbus Bluetooth Speaker",
     sku: "ELEC-NBS-05",
     category: "Electronics",

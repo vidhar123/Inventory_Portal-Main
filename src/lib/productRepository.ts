@@ -1,8 +1,19 @@
 import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { getPool } from "./db";
-import { NewProduct, Product, ProductStatus } from "./types";
+import { Manufacturer, Product, ProductStatus } from "./types";
 
-export type ProductInput = Omit<NewProduct, "images">;
+export interface ProductInput {
+  manufacturerId: string | null;
+  name: string;
+  sku: string;
+  category: string;
+  description: string;
+  price: number;
+  cost: number;
+  quantity: number;
+  reorderLevel: number;
+  status: ProductStatus;
+}
 
 export interface ProductImageRecord {
   id: string;
@@ -20,6 +31,8 @@ export interface ProductRecord extends Omit<Product, "images"> {
 
 interface ProductRow extends RowDataPacket {
   id: number;
+  manufacturer_id: number | null;
+  manufacturer_name: string | null;
   name: string;
   sku: string;
   category: string;
@@ -29,6 +42,12 @@ interface ProductRow extends RowDataPacket {
   quantity: number;
   reorder_level: number;
   status: ProductStatus;
+  created_at: Date;
+}
+
+interface ManufacturerRow extends RowDataPacket {
+  id: number;
+  name: string;
   created_at: Date;
 }
 
@@ -45,6 +64,8 @@ interface ProductImageRow extends RowDataPacket {
 function mapProduct(row: ProductRow, imageRecords: ProductImageRecord[]): ProductRecord {
   return {
     id: String(row.id),
+    manufacturerId: row.manufacturer_id ? String(row.manufacturer_id) : null,
+    manufacturerName: row.manufacturer_name,
     name: row.name,
     sku: row.sku,
     category: row.category,
@@ -56,6 +77,14 @@ function mapProduct(row: ProductRow, imageRecords: ProductImageRecord[]): Produc
     status: row.status,
     createdAt: row.created_at.toISOString(),
     imageRecords,
+  };
+}
+
+function mapManufacturer(row: ManufacturerRow): Manufacturer {
+  return {
+    id: String(row.id),
+    name: row.name,
+    createdAt: row.created_at.toISOString(),
   };
 }
 
@@ -95,10 +124,12 @@ async function listImagesByProductIds(productIds: string[]) {
 
 export async function listProductRecords() {
   const [rows] = await getPool().query<ProductRow[]>(
-    `SELECT id, name, sku, category, description, selling_price, unit_cost,
-            quantity, reorder_level, status, created_at
-     FROM products
-     ORDER BY created_at DESC, id DESC`
+    `SELECT p.id, p.manufacturer_id, m.name AS manufacturer_name, p.name, p.sku,
+            p.category, p.description, p.selling_price, p.unit_cost,
+            p.quantity, p.reorder_level, p.status, p.created_at
+     FROM products p
+     LEFT JOIN manufacturers m ON m.id = p.manufacturer_id
+     ORDER BY p.created_at DESC, p.id DESC`
   );
   const imageMap = await listImagesByProductIds(rows.map((row) => String(row.id)));
 
@@ -107,10 +138,12 @@ export async function listProductRecords() {
 
 export async function getProductRecord(id: string) {
   const [rows] = await getPool().query<ProductRow[]>(
-    `SELECT id, name, sku, category, description, selling_price, unit_cost,
-            quantity, reorder_level, status, created_at
-     FROM products
-     WHERE id = ?
+    `SELECT p.id, p.manufacturer_id, m.name AS manufacturer_name, p.name, p.sku,
+            p.category, p.description, p.selling_price, p.unit_cost,
+            p.quantity, p.reorder_level, p.status, p.created_at
+     FROM products p
+     LEFT JOIN manufacturers m ON m.id = p.manufacturer_id
+     WHERE p.id = ?
      LIMIT 1`,
     [id]
   );
@@ -135,9 +168,10 @@ export async function getProductImageKeys(id: string) {
 export async function createProductRecord(data: ProductInput) {
   const [result] = await getPool().execute<ResultSetHeader>(
     `INSERT INTO products
-       (name, sku, category, description, selling_price, unit_cost, quantity, reorder_level, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (manufacturer_id, name, sku, category, description, selling_price, unit_cost, quantity, reorder_level, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
+      data.manufacturerId || null,
       data.name,
       data.sku,
       data.category,
@@ -186,14 +220,17 @@ export async function updateProductRecord(
   data: Partial<ProductInput>
 ) {
   const fields: string[] = [];
-  const values: (string | number)[] = [];
+  const values: (string | number | null)[] = [];
 
-  const add = (column: string, value: string | number) => {
+  const add = (column: string, value: string | number | null) => {
     fields.push(`${column} = ?`);
     values.push(value);
   };
 
   if (data.name !== undefined) add("name", data.name);
+  if (data.manufacturerId !== undefined) {
+    add("manufacturer_id", data.manufacturerId || null);
+  }
   if (data.sku !== undefined) add("sku", data.sku);
   if (data.category !== undefined) add("category", data.category);
   if (data.description !== undefined) add("description", data.description);
@@ -214,6 +251,72 @@ export async function updateProductRecord(
 
 export async function deleteProductRecord(id: string) {
   await getPool().execute("DELETE FROM products WHERE id = ?", [id]);
+}
+
+export async function listManufacturers() {
+  const [rows] = await getPool().query<ManufacturerRow[]>(
+    `SELECT id, name, created_at
+     FROM manufacturers
+     ORDER BY name ASC`
+  );
+  return rows.map(mapManufacturer);
+}
+
+export async function createManufacturer(name: string) {
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error("Manufacturer name is required.");
+
+  const [result] = await getPool().execute<ResultSetHeader>(
+    "INSERT INTO manufacturers (name) VALUES (?)",
+    [trimmed]
+  );
+  return String(result.insertId);
+}
+
+export async function updateManufacturer(id: string, name: string) {
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error("Manufacturer name is required.");
+
+  await getPool().execute("UPDATE manufacturers SET name = ? WHERE id = ?", [
+    trimmed,
+    id,
+  ]);
+}
+
+export async function bulkUpsertProducts(products: ProductInput[]) {
+  if (products.length === 0) return { imported: 0 };
+
+  const values = products.map((product) => [
+    product.manufacturerId || null,
+    product.name,
+    product.sku,
+    product.category,
+    product.description,
+    product.price,
+    product.cost,
+    product.quantity,
+    product.reorderLevel,
+    product.status,
+  ]);
+
+  await getPool().query(
+    `INSERT INTO products
+       (manufacturer_id, name, sku, category, description, selling_price, unit_cost, quantity, reorder_level, status)
+     VALUES ?
+     ON DUPLICATE KEY UPDATE
+       manufacturer_id = VALUES(manufacturer_id),
+       name = VALUES(name),
+       category = VALUES(category),
+       description = VALUES(description),
+       selling_price = VALUES(selling_price),
+       unit_cost = VALUES(unit_cost),
+       quantity = VALUES(quantity),
+       reorder_level = VALUES(reorder_level),
+       status = VALUES(status)`,
+    [values]
+  );
+
+  return { imported: products.length };
 }
 
 export async function withTransaction<T>(

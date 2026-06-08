@@ -5,8 +5,10 @@ A modern inventory management dashboard built with **Next.js 15**, **Tailwind CS
 ## Features
 
 - **Dashboard** — KPI stat cards, inventory value, low/out-of-stock counts, stock-by-category bars, and a "needs attention" list.
-- **Products** — searchable, filterable product card grid with persistent delete.
-- **Add Product** — validated form with INR pricing, live margin calculation, status selector, and **multi-image upload (up to 5 images)**.
+- **Products** — compact product card grid with search, category/status filters, manufacturer filter, persistent delete, and 5-image gallery preview.
+- **Manufacturers** — add new manufacturers, rename existing manufacturers, and filter products by manufacturer.
+- **Add Product** — validated form with manufacturer selection, INR pricing, live margin calculation, status selector, and **multi-image upload (up to 5 images)**.
+- **Bulk Upload** — import products from `.csv`, `.xls`, or `.xlsx` for a selected manufacturer.
 - **Inventory** — table view with INR selling price, unit cost, stock value, status tabs, inline stock adjustment, and per-product editing.
 - **Persistent backend** — products are stored in MySQL, image files are stored privately in Linode Object Storage, and the UI displays temporary signed image URLs.
 
@@ -32,9 +34,10 @@ mysql -h YOUR_MYSQL_HOST -P 3306 -u YOUR_MYSQL_USER -p < database/schema.sql
 The script creates:
 
 - Database: `inventory_portal`
+- Table: `manufacturers`
 - Table: `products`
 - Table: `product_images`
-- Indexes for SKU, category, status, stock checks, and image ordering
+- Indexes for SKU, manufacturer, category, status, stock checks, and image ordering
 - Optional sample product rows using `ON DUPLICATE KEY UPDATE`
 
 Core schema:
@@ -44,8 +47,18 @@ CREATE DATABASE IF NOT EXISTS inventory_portal
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS manufacturers (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  name VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_manufacturers_name (name)
+) ENGINE=InnoDB;
+
 CREATE TABLE IF NOT EXISTS products (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  manufacturer_id BIGINT UNSIGNED NULL,
   name VARCHAR(255) NOT NULL,
   sku VARCHAR(100) NOT NULL,
   category VARCHAR(100) NOT NULL,
@@ -58,7 +71,10 @@ CREATE TABLE IF NOT EXISTS products (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  UNIQUE KEY uq_products_sku (sku)
+  UNIQUE KEY uq_products_sku (sku),
+  CONSTRAINT fk_products_manufacturer
+    FOREIGN KEY (manufacturer_id) REFERENCES manufacturers(id)
+    ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS product_images (
@@ -78,7 +94,13 @@ CREATE TABLE IF NOT EXISTS product_images (
 ) ENGINE=InnoDB;
 ```
 
-Use `database/schema.sql` as the source of truth because it also includes secondary indexes and seed data.
+Use `database/schema.sql` as the source of truth because it also includes secondary indexes, default manufacturers (`ABC`, `BCD`, `CDE`, `DEF`, `EFI`), and seed data.
+
+If you already created the earlier schema before manufacturers existed, run this one-time migration instead of recreating the whole database:
+
+```bash
+mysql -h YOUR_MYSQL_HOST -P 3306 -u YOUR_MYSQL_USER -p inventory_portal < database/migrations/001_add_manufacturers.sql
+```
 
 ## Step 2: Configure Linode Object Storage
 
@@ -140,10 +162,20 @@ Expected response:
 1. Open the Dashboard and confirm products load from MySQL.
 2. Open Products and verify the product list appears.
 3. Add a product with up to 5 images.
-4. Confirm rows are created in `products` and `product_images`.
-5. Confirm image objects are created under `product-images/{productId}/...` in Linode Object Storage.
-6. Open Inventory and update quantity, unit cost, selling price, reorder level, or status.
-7. Delete a product and confirm the database row is removed. The API also attempts to remove matching object storage files.
+4. Add or rename a manufacturer from the Products page.
+5. Select a manufacturer and bulk upload a `.csv`, `.xls`, or `.xlsx` file.
+6. Confirm rows are created in `manufacturers`, `products`, and `product_images`.
+7. Confirm image objects are created under `product-images/{productId}/...` in Linode Object Storage.
+8. Open Inventory and update quantity, unit cost, selling price, reorder level, or status.
+9. Delete a product and confirm the database row is removed. The API also attempts to remove matching object storage files.
+
+Bulk upload columns:
+
+```text
+name, sku, category, description, price, cost, quantity, reorderLevel, status
+```
+
+Supported status values are `active`, `draft`, and `archived`. Uploaded rows are assigned to the selected manufacturer.
 
 ## API Routes
 
@@ -151,20 +183,28 @@ Expected response:
 - `POST /api/products` — create a product and upload images to Linode Object Storage.
 - `PATCH /api/products/:id` — update product or inventory fields.
 - `DELETE /api/products/:id` — delete a product and its image metadata/files.
+- `POST /api/products/bulk` — bulk import `.csv`, `.xls`, or `.xlsx` products for a manufacturer.
+- `GET /api/manufacturers` — fetch manufacturers.
+- `POST /api/manufacturers` — create a manufacturer.
+- `PATCH /api/manufacturers/:id` — rename a manufacturer.
 - `GET /api/health` — verify MySQL connectivity.
 
 ## Project Structure
 
 ```text
 database/
-└── schema.sql
+├── schema.sql
+└── migrations/
+    └── 001_add_manufacturers.sql
 src/
 ├── app/
 │   ├── api/
 │   │   ├── health/route.ts
+│   │   ├── manufacturers/
 │   │   └── products/
 │   │       ├── route.ts
-│   │       └── [id]/route.ts
+│   │       ├── [id]/route.ts
+│   │       └── bulk/route.ts
 │   ├── page.tsx
 │   ├── products/
 │   └── inventory/

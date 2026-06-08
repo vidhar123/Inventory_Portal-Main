@@ -40,6 +40,7 @@ function numberValue(formData: FormData, key: string) {
 }
 
 function parseProductInput(formData: FormData): ProductInput {
+  const manufacturerId = stringValue(formData, "manufacturerId");
   const name = stringValue(formData, "name");
   const sku = stringValue(formData, "sku").toUpperCase();
   const category = stringValue(formData, "category");
@@ -51,6 +52,7 @@ function parseProductInput(formData: FormData): ProductInput {
   if (!statuses.includes(status)) throw new Error("Invalid product status.");
 
   return {
+    manufacturerId: manufacturerId || null,
     name,
     sku,
     category,
@@ -88,6 +90,8 @@ async function toClientProduct(record: ProductRecord): Promise<Product> {
 
   return {
     id: record.id,
+    manufacturerId: record.manufacturerId,
+    manufacturerName: record.manufacturerName,
     name: record.name,
     sku: record.sku,
     category: record.category,
