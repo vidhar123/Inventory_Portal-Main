@@ -4,12 +4,12 @@ A modern inventory management dashboard built with **Next.js 15**, **Tailwind CS
 
 ## Features
 
-- **Dashboard** — KPI stat cards, inventory value, low/out-of-stock counts, stock-by-category bars, and a "needs attention" list.
+- **Dashboard** — consolidated or manufacturer-specific KPI stat cards, inventory value, low/out-of-stock counts, stock-by-category bars, and a "needs attention" list.
 - **Products** — compact product card grid with search, category/status filters, manufacturer filter, persistent delete, and 5-image gallery preview.
 - **Manufacturers** — add new manufacturers, rename existing manufacturers, and filter products by manufacturer.
 - **Add Product** — validated form with manufacturer selection, INR pricing, live margin calculation, status selector, and **multi-image upload (up to 5 images)**.
 - **Bulk Upload** — import products from `.csv`, `.xls`, or `.xlsx` for a selected manufacturer.
-- **Inventory** — table view with INR selling price, unit cost, stock value, status tabs, inline stock adjustment, and per-product editing.
+- **Inventory** — consolidated or manufacturer-specific table view with INR selling price, unit cost, stock value, status tabs, inline stock adjustment, and per-product editing.
 - **Persistent backend** — products are stored in MySQL, image files are stored privately in Linode Object Storage, and the UI displays temporary signed image URLs.
 
 ## Architecture
@@ -64,6 +64,7 @@ CREATE TABLE IF NOT EXISTS products (
   category VARCHAR(100) NOT NULL,
   description TEXT NULL,
   selling_price DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+  discount_percent DECIMAL(5, 2) NOT NULL DEFAULT 0.00,
   unit_cost DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
   quantity INT UNSIGNED NOT NULL DEFAULT 0,
   reorder_level INT UNSIGNED NOT NULL DEFAULT 0,
@@ -100,6 +101,12 @@ If you already created the earlier schema before manufacturers existed, run this
 
 ```bash
 mysql -h YOUR_MYSQL_HOST -P 3306 -u YOUR_MYSQL_USER -p inventory_portal < database/migrations/001_add_manufacturers.sql
+```
+
+If you already have the manufacturers migration applied, run the discount migration once:
+
+```bash
+mysql -h YOUR_MYSQL_HOST -P 3306 -u YOUR_MYSQL_USER -p inventory_portal < database/migrations/002_add_discount_percent.sql
 ```
 
 ## Step 2: Configure Linode Object Storage
@@ -166,13 +173,14 @@ Expected response:
 5. Select a manufacturer and bulk upload a `.csv`, `.xls`, or `.xlsx` file.
 6. Confirm rows are created in `manufacturers`, `products`, and `product_images`.
 7. Confirm image objects are created under `product-images/{productId}/...` in Linode Object Storage.
-8. Open Inventory and update quantity, unit cost, selling price, reorder level, or status.
-9. Delete a product and confirm the database row is removed. The API also attempts to remove matching object storage files.
+8. Open Dashboard or Inventory and switch between all manufacturers and a single manufacturer.
+9. Open Inventory and update product name, SKU, description, manufacturer, selling price, discount, quantity, unit cost, reorder level, status, or replacement pictures.
+10. Delete a product and confirm the database row is removed. The API also attempts to remove matching object storage files.
 
 Bulk upload columns:
 
 ```text
-name, sku, category, description, price, cost, quantity, reorderLevel, status
+name, sku, category, description, price, discountPercent, cost, quantity, reorderLevel, status
 ```
 
 Supported status values are `active`, `draft`, and `archived`. Uploaded rows are assigned to the selected manufacturer.
@@ -195,7 +203,8 @@ Supported status values are `active`, `draft`, and `archived`. Uploaded rows are
 database/
 ├── schema.sql
 └── migrations/
-    └── 001_add_manufacturers.sql
+    ├── 001_add_manufacturers.sql
+    └── 002_add_discount_percent.sql
 src/
 ├── app/
 │   ├── api/

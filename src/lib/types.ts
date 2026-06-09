@@ -15,6 +15,7 @@ export interface Product {
   category: string;
   description: string;
   price: number;
+  discountPercent: number;
   cost: number;
   quantity: number;
   reorderLevel: number;

@@ -34,8 +34,8 @@ function ProductGallery({
   const activeImage = product.images[activeIndex];
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/60 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-4xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/60 p-2 backdrop-blur-sm">
+      <div className="max-h-[calc(100vh-1rem)] w-full max-w-[min(920px,calc(100vw-1rem))] overflow-y-auto rounded-2xl bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
           <div>
             <h2 className="text-lg font-semibold text-slate-900">
@@ -54,8 +54,8 @@ function ProductGallery({
           </button>
         </div>
 
-        <div className="grid gap-4 p-5 lg:grid-cols-[1fr_160px]">
-          <div className="grid aspect-[4/3] place-items-center overflow-hidden rounded-2xl bg-slate-100">
+        <div className="grid gap-4 p-4 lg:grid-cols-[1fr_128px]">
+          <div className="grid h-[min(62vh,520px)] place-items-center overflow-hidden rounded-2xl bg-slate-100">
             {activeImage ? (
               <img
                 src={activeImage}
@@ -374,13 +374,13 @@ export default function ProductsPage() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7">
           {filtered.map((p) => {
             const level = stockLevel(p);
             return (
               <div
                 key={p.id}
-                className="group flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md"
+                className="group flex flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition hover:shadow-md"
               >
                 <button
                   onClick={() => setGalleryProduct(p)}
@@ -412,11 +412,11 @@ export default function ProductsPage() {
                   )}
                 </button>
 
-                <div className="flex flex-1 flex-col p-3">
+                <div className="flex flex-1 flex-col p-2">
                   <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-brand-600">
                     {p.manufacturerName ?? "No manufacturer"}
                   </p>
-                  <h3 className="mt-1 line-clamp-1 text-sm font-semibold text-slate-900">
+                  <h3 className="mt-0.5 line-clamp-1 text-xs font-semibold text-slate-900">
                     {p.name}
                   </h3>
                   <p className="truncate text-[11px] text-slate-400">{p.sku}</p>
@@ -425,8 +425,8 @@ export default function ProductsPage() {
                   </p>
 
                   <div className="mt-2 flex items-end justify-between gap-2">
-                    <span className="text-sm font-semibold text-slate-900">
-                      {formatCurrency(p.price)}
+                    <span className="text-xs font-semibold text-slate-900">
+                      {formatCurrency(p.price * (1 - p.discountPercent / 100))}
                     </span>
                     <Badge
                       tone={
@@ -442,7 +442,7 @@ export default function ProductsPage() {
                     </Badge>
                   </div>
 
-                  <div className="mt-3 flex items-center gap-2 border-t border-slate-100 pt-2">
+                  <div className="mt-2 flex items-center gap-2 border-t border-slate-100 pt-2">
                     <button
                       onClick={async () => {
                         if (

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useInventory } from "@/context/InventoryContext";
 import { PageHeader } from "@/components/PageHeader";
 import { StatCard } from "@/components/StatCard";
@@ -12,28 +12,45 @@ import { formatCurrency, formatNumber, stockLevel } from "@/lib/utils";
 import { CATEGORIES } from "@/lib/types";
 
 export default function DashboardPage() {
-  const { products, loading, error, refreshProducts } = useInventory();
+  const { products, manufacturers, loading, error, refreshProducts } =
+    useInventory();
+  const [manufacturerId, setManufacturerId] = useState("All");
+
+  const scopedProducts = useMemo(
+    () =>
+      manufacturerId === "All"
+        ? products
+        : products.filter((product) => product.manufacturerId === manufacturerId),
+    [products, manufacturerId]
+  );
+
+  const selectedManufacturer = manufacturers.find(
+    (manufacturer) => manufacturer.id === manufacturerId
+  );
 
   const stats = useMemo(() => {
-    const totalUnits = products.reduce((s, p) => s + p.quantity, 0);
-    const inventoryValue = products.reduce((s, p) => s + p.quantity * p.cost, 0);
-    const retailValue = products.reduce((s, p) => s + p.quantity * p.price, 0);
-    const lowStock = products.filter((p) => stockLevel(p) === "low").length;
-    const outOfStock = products.filter((p) => stockLevel(p) === "out").length;
+    const totalUnits = scopedProducts.reduce((s, p) => s + p.quantity, 0);
+    const inventoryValue = scopedProducts.reduce((s, p) => s + p.quantity * p.cost, 0);
+    const retailValue = scopedProducts.reduce(
+      (s, p) => s + p.quantity * p.price * (1 - p.discountPercent / 100),
+      0
+    );
+    const lowStock = scopedProducts.filter((p) => stockLevel(p) === "low").length;
+    const outOfStock = scopedProducts.filter((p) => stockLevel(p) === "out").length;
     return {
-      skuCount: products.length,
+      skuCount: scopedProducts.length,
       totalUnits,
       inventoryValue,
       retailValue,
       lowStock,
       outOfStock,
     };
-  }, [products]);
+  }, [scopedProducts]);
 
   const byCategory = useMemo(() => {
     const map = new Map<string, number>();
     for (const c of CATEGORIES) map.set(c, 0);
-    for (const p of products) {
+    for (const p of scopedProducts) {
       map.set(p.category, (map.get(p.category) ?? 0) + p.quantity);
     }
     const entries = [...map.entries()].filter(([, v]) => v > 0);
@@ -41,23 +58,40 @@ export default function DashboardPage() {
     return entries
       .sort((a, b) => b[1] - a[1])
       .map(([name, value]) => ({ name, value, pct: Math.round((value / max) * 100) }));
-  }, [products]);
+  }, [scopedProducts]);
 
   const attention = useMemo(
     () =>
-      products
+      scopedProducts
         .filter((p) => stockLevel(p) !== "ok")
         .sort((a, b) => a.quantity - b.quantity)
         .slice(0, 5),
-    [products]
+    [scopedProducts]
   );
 
   return (
     <>
       <PageHeader
         title="Dashboard"
-        subtitle="Overview of your inventory health and value."
-      />
+        subtitle={
+          manufacturerId === "All"
+            ? "Consolidated view across all manufacturers."
+            : `Inventory health for ${selectedManufacturer?.name ?? "selected manufacturer"}.`
+        }
+      >
+        <select
+          value={manufacturerId}
+          onChange={(event) => setManufacturerId(event.target.value)}
+          className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+        >
+          <option value="All">All manufacturers</option>
+          {manufacturers.map((manufacturer) => (
+            <option key={manufacturer.id} value={manufacturer.id}>
+              {manufacturer.name}
+            </option>
+          ))}
+        </select>
+      </PageHeader>
 
       {error && (
         <div className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">

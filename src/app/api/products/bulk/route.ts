@@ -61,6 +61,9 @@ function parseRows(rows: Record<string, unknown>[], manufacturerId: string) {
       category,
       description: getCell(row, ["description", "details"]),
       price: toNumber(getCell(row, ["price", "selling price", "selling_price"])),
+      discountPercent: toNumber(
+        getCell(row, ["discount", "discount percent", "discount_percent"])
+      ),
       cost: toNumber(getCell(row, ["cost", "unit cost", "unit_cost"])),
       quantity: Math.floor(toNumber(getCell(row, ["quantity", "qty", "stock"]))),
       reorderLevel: Math.floor(

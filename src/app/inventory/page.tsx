@@ -5,60 +5,86 @@ import { useInventory } from "@/context/InventoryContext";
 import { PageHeader } from "@/components/PageHeader";
 import { Badge } from "@/components/Badge";
 import { ProductThumb } from "@/components/ProductThumb";
+import { ImageUploader, SelectedImage } from "@/components/ImageUploader";
 import { formatCurrency, formatNumber, stockLevel } from "@/lib/utils";
 import { Product, ProductStatus } from "@/lib/types";
 
 type Filter = "all" | "low" | "out";
 type EditForm = {
+  manufacturerId: string;
+  name: string;
+  sku: string;
+  description: string;
   price: string;
+  discountPercent: string;
   cost: string;
   quantity: string;
   reorderLevel: string;
   status: ProductStatus;
+  replacementImages: SelectedImage[];
 };
 
 function makeEditForm(product: Product): EditForm {
   return {
+    manufacturerId: product.manufacturerId ?? "",
+    name: product.name,
+    sku: product.sku,
+    description: product.description,
     price: String(product.price),
+    discountPercent: String(product.discountPercent),
     cost: String(product.cost),
     quantity: String(product.quantity),
     reorderLevel: String(product.reorderLevel),
     status: product.status,
+    replacementImages: [],
   };
 }
 
 export default function InventoryPage() {
   const {
     products,
+    manufacturers,
     adjustStock,
-    updateProduct,
     loading,
     error,
     refreshProducts,
   } = useInventory();
   const [filter, setFilter] = useState<Filter>("all");
+  const [manufacturerId, setManufacturerId] = useState("All");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<EditForm | null>(null);
   const [editError, setEditError] = useState<string | null>(null);
 
+  const scopedProducts = useMemo(
+    () =>
+      manufacturerId === "All"
+        ? products
+        : products.filter((product) => product.manufacturerId === manufacturerId),
+    [products, manufacturerId]
+  );
+
+  const selectedManufacturer = manufacturers.find(
+    (manufacturer) => manufacturer.id === manufacturerId
+  );
+
   const counts = useMemo(() => {
     let low = 0;
     let out = 0;
-    for (const p of products) {
+    for (const p of scopedProducts) {
       const lvl = stockLevel(p);
       if (lvl === "low") low++;
       if (lvl === "out") out++;
     }
-    return { all: products.length, low, out };
-  }, [products]);
+    return { all: scopedProducts.length, low, out };
+  }, [scopedProducts]);
 
   const rows = useMemo(() => {
     const list =
       filter === "all"
-        ? products
-        : products.filter((p) => stockLevel(p) === filter);
+        ? scopedProducts
+        : scopedProducts.filter((p) => stockLevel(p) === filter);
     return [...list].sort((a, b) => a.quantity - b.quantity);
-  }, [products, filter]);
+  }, [scopedProducts, filter]);
 
   const tabs: { key: Filter; label: string; count: number }[] = [
     { key: "all", label: "All", count: counts.all },
@@ -86,23 +112,60 @@ export default function InventoryPage() {
     if (!editingId || !editForm) return;
 
     const price = Number(editForm.price);
+    const discountPercent = Number(editForm.discountPercent);
     const cost = Number(editForm.cost);
     const quantity = Number(editForm.quantity);
     const reorderLevel = Number(editForm.reorderLevel);
 
-    if ([price, cost, quantity, reorderLevel].some((value) => Number.isNaN(value) || value < 0)) {
+    if (!editForm.name.trim() || !editForm.sku.trim()) {
+      setEditError("Display name and SKU are required.");
+      return;
+    }
+
+    if (!editForm.manufacturerId) {
+      setEditError("Manufacturer is required.");
+      return;
+    }
+
+    if (
+      [price, discountPercent, cost, quantity, reorderLevel].some(
+        (value) => Number.isNaN(value) || value < 0
+      ) ||
+      discountPercent > 100
+    ) {
       setEditError("Please enter valid non-negative values.");
       return;
     }
 
     try {
-      await updateProduct(editingId, {
-        price,
-        cost,
-        quantity,
-        reorderLevel,
-        status: editForm.status,
+      const formData = new FormData();
+      formData.set("manufacturerId", editForm.manufacturerId);
+      formData.set("name", editForm.name.trim());
+      formData.set("sku", editForm.sku.trim().toUpperCase());
+      formData.set("description", editForm.description.trim());
+      formData.set("price", String(price));
+      formData.set("discountPercent", String(discountPercent));
+      formData.set("cost", String(cost));
+      formData.set("quantity", String(quantity));
+      formData.set("reorderLevel", String(reorderLevel));
+      formData.set("status", editForm.status);
+      formData.set(
+        "replaceImages",
+        editForm.replacementImages.length > 0 ? "true" : "false"
+      );
+      for (const image of editForm.replacementImages) {
+        formData.append("images", image.file);
+      }
+
+      const response = await fetch(`/api/products/${editingId}`, {
+        method: "PATCH",
+        body: formData,
       });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Failed to save changes.");
+      }
+      await refreshProducts();
       closeEdit();
     } catch (error) {
       setEditError(
@@ -115,8 +178,25 @@ export default function InventoryPage() {
     <>
       <PageHeader
         title="Inventory"
-        subtitle="Track and adjust stock levels across your catalog."
-      />
+        subtitle={
+          manufacturerId === "All"
+            ? "Consolidated inventory across all manufacturers."
+            : `Inventory for ${selectedManufacturer?.name ?? "selected manufacturer"}.`
+        }
+      >
+        <select
+          value={manufacturerId}
+          onChange={(event) => setManufacturerId(event.target.value)}
+          className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+        >
+          <option value="All">All manufacturers</option>
+          {manufacturers.map((manufacturer) => (
+            <option key={manufacturer.id} value={manufacturer.id}>
+              {manufacturer.name}
+            </option>
+          ))}
+        </select>
+      </PageHeader>
 
       {error && (
         <div className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
@@ -206,7 +286,18 @@ export default function InventoryPage() {
                     </td>
                     <td className="px-5 py-3 text-slate-600">{p.category}</td>
                     <td className="px-5 py-3 text-right tabular-nums font-medium text-slate-800">
-                      {formatCurrency(p.price)}
+                      <div>
+                        <p>
+                          {formatCurrency(
+                            p.price * (1 - p.discountPercent / 100)
+                          )}
+                        </p>
+                        {p.discountPercent > 0 && (
+                          <p className="text-xs font-normal text-slate-400">
+                            {p.discountPercent}% off {formatCurrency(p.price)}
+                          </p>
+                        )}
+                      </div>
                     </td>
                     <td className="px-5 py-3 text-right tabular-nums text-slate-600">
                       {formatCurrency(p.cost)}
@@ -284,7 +375,7 @@ export default function InventoryPage() {
 
       {editingProduct && editForm && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/40 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
+          <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div className="flex items-center gap-3">
                 <ProductThumb product={editingProduct} size="sm" />
@@ -308,6 +399,71 @@ export default function InventoryPage() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <label className="block">
                 <span className="mb-1.5 block text-sm font-medium text-slate-700">
+                  Display name
+                </span>
+                <input
+                  value={editForm.name}
+                  onChange={(event) =>
+                    setEditForm({ ...editForm, name: event.target.value })
+                  }
+                  className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium text-slate-700">
+                  SKU
+                </span>
+                <input
+                  value={editForm.sku}
+                  onChange={(event) =>
+                    setEditForm({ ...editForm, sku: event.target.value })
+                  }
+                  className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm uppercase outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+                />
+              </label>
+
+              <label className="block sm:col-span-2">
+                <span className="mb-1.5 block text-sm font-medium text-slate-700">
+                  Description
+                </span>
+                <textarea
+                  value={editForm.description}
+                  onChange={(event) =>
+                    setEditForm({
+                      ...editForm,
+                      description: event.target.value,
+                    })
+                  }
+                  className="min-h-20 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+                />
+              </label>
+
+              <label className="block sm:col-span-2">
+                <span className="mb-1.5 block text-sm font-medium text-slate-700">
+                  Manufacturer
+                </span>
+                <select
+                  value={editForm.manufacturerId}
+                  onChange={(event) =>
+                    setEditForm({
+                      ...editForm,
+                      manufacturerId: event.target.value,
+                    })
+                  }
+                  className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+                >
+                  <option value="">Select manufacturer</option>
+                  {manufacturers.map((manufacturer) => (
+                    <option key={manufacturer.id} value={manufacturer.id}>
+                      {manufacturer.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium text-slate-700">
                   Selling price (INR)
                 </span>
                 <input
@@ -317,6 +473,26 @@ export default function InventoryPage() {
                   value={editForm.price}
                   onChange={(event) =>
                     setEditForm({ ...editForm, price: event.target.value })
+                  }
+                  className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium text-slate-700">
+                  Additional discount (%)
+                </span>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  value={editForm.discountPercent}
+                  onChange={(event) =>
+                    setEditForm({
+                      ...editForm,
+                      discountPercent: event.target.value,
+                    })
                   }
                   className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
                 />
@@ -390,6 +566,22 @@ export default function InventoryPage() {
                   <option value="archived">Archived</option>
                 </select>
               </label>
+
+              <div className="sm:col-span-2">
+                <span className="mb-1.5 block text-sm font-medium text-slate-700">
+                  Replace product pictures
+                </span>
+                <p className="mb-3 text-xs text-slate-400">
+                  Upload new images only when you want to replace all existing
+                  pictures for this product.
+                </p>
+                <ImageUploader
+                  images={editForm.replacementImages}
+                  onChange={(images) =>
+                    setEditForm({ ...editForm, replacementImages: images })
+                  }
+                />
+              </div>
             </div>
 
             {editError && (

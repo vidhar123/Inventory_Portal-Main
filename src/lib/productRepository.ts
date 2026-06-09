@@ -9,6 +9,7 @@ export interface ProductInput {
   category: string;
   description: string;
   price: number;
+  discountPercent: number;
   cost: number;
   quantity: number;
   reorderLevel: number;
@@ -38,6 +39,7 @@ interface ProductRow extends RowDataPacket {
   category: string;
   description: string | null;
   selling_price: number;
+  discount_percent: number;
   unit_cost: number;
   quantity: number;
   reorder_level: number;
@@ -71,6 +73,7 @@ function mapProduct(row: ProductRow, imageRecords: ProductImageRecord[]): Produc
     category: row.category,
     description: row.description ?? "",
     price: Number(row.selling_price),
+    discountPercent: Number(row.discount_percent),
     cost: Number(row.unit_cost),
     quantity: Number(row.quantity),
     reorderLevel: Number(row.reorder_level),
@@ -125,7 +128,7 @@ async function listImagesByProductIds(productIds: string[]) {
 export async function listProductRecords() {
   const [rows] = await getPool().query<ProductRow[]>(
     `SELECT p.id, p.manufacturer_id, m.name AS manufacturer_name, p.name, p.sku,
-            p.category, p.description, p.selling_price, p.unit_cost,
+            p.category, p.description, p.selling_price, p.discount_percent, p.unit_cost,
             p.quantity, p.reorder_level, p.status, p.created_at
      FROM products p
      LEFT JOIN manufacturers m ON m.id = p.manufacturer_id
@@ -139,7 +142,7 @@ export async function listProductRecords() {
 export async function getProductRecord(id: string) {
   const [rows] = await getPool().query<ProductRow[]>(
     `SELECT p.id, p.manufacturer_id, m.name AS manufacturer_name, p.name, p.sku,
-            p.category, p.description, p.selling_price, p.unit_cost,
+            p.category, p.description, p.selling_price, p.discount_percent, p.unit_cost,
             p.quantity, p.reorder_level, p.status, p.created_at
      FROM products p
      LEFT JOIN manufacturers m ON m.id = p.manufacturer_id
@@ -168,8 +171,8 @@ export async function getProductImageKeys(id: string) {
 export async function createProductRecord(data: ProductInput) {
   const [result] = await getPool().execute<ResultSetHeader>(
     `INSERT INTO products
-       (manufacturer_id, name, sku, category, description, selling_price, unit_cost, quantity, reorder_level, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (manufacturer_id, name, sku, category, description, selling_price, discount_percent, unit_cost, quantity, reorder_level, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       data.manufacturerId || null,
       data.name,
@@ -177,6 +180,7 @@ export async function createProductRecord(data: ProductInput) {
       data.category,
       data.description,
       data.price,
+      data.discountPercent,
       data.cost,
       data.quantity,
       data.reorderLevel,
@@ -235,6 +239,9 @@ export async function updateProductRecord(
   if (data.category !== undefined) add("category", data.category);
   if (data.description !== undefined) add("description", data.description);
   if (data.price !== undefined) add("selling_price", data.price);
+  if (data.discountPercent !== undefined) {
+    add("discount_percent", data.discountPercent);
+  }
   if (data.cost !== undefined) add("unit_cost", data.cost);
   if (data.quantity !== undefined) add("quantity", data.quantity);
   if (data.reorderLevel !== undefined) add("reorder_level", data.reorderLevel);
@@ -251,6 +258,12 @@ export async function updateProductRecord(
 
 export async function deleteProductRecord(id: string) {
   await getPool().execute("DELETE FROM products WHERE id = ?", [id]);
+}
+
+export async function deleteProductImageRecords(productId: string) {
+  await getPool().execute("DELETE FROM product_images WHERE product_id = ?", [
+    productId,
+  ]);
 }
 
 export async function listManufacturers() {
@@ -293,6 +306,7 @@ export async function bulkUpsertProducts(products: ProductInput[]) {
     product.category,
     product.description,
     product.price,
+    product.discountPercent,
     product.cost,
     product.quantity,
     product.reorderLevel,
@@ -301,7 +315,7 @@ export async function bulkUpsertProducts(products: ProductInput[]) {
 
   await getPool().query(
     `INSERT INTO products
-       (manufacturer_id, name, sku, category, description, selling_price, unit_cost, quantity, reorder_level, status)
+       (manufacturer_id, name, sku, category, description, selling_price, discount_percent, unit_cost, quantity, reorder_level, status)
      VALUES ?
      ON DUPLICATE KEY UPDATE
        manufacturer_id = VALUES(manufacturer_id),
@@ -309,6 +323,7 @@ export async function bulkUpsertProducts(products: ProductInput[]) {
        category = VALUES(category),
        description = VALUES(description),
        selling_price = VALUES(selling_price),
+       discount_percent = VALUES(discount_percent),
        unit_cost = VALUES(unit_cost),
        quantity = VALUES(quantity),
        reorder_level = VALUES(reorder_level),

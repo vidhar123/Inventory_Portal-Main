@@ -20,6 +20,7 @@ type ProductUpdate = Partial<
     | "category"
     | "description"
     | "price"
+    | "discountPercent"
     | "cost"
     | "quantity"
     | "reorderLevel"

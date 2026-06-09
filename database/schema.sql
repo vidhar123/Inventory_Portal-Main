@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS products (
   category VARCHAR(100) NOT NULL,
   description TEXT NULL,
   selling_price DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+  discount_percent DECIMAL(5, 2) NOT NULL DEFAULT 0.00,
   unit_cost DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
   quantity INT UNSIGNED NOT NULL DEFAULT 0,
   reorder_level INT UNSIGNED NOT NULL DEFAULT 0,
@@ -61,19 +62,20 @@ CREATE TABLE IF NOT EXISTS product_images (
 
 -- Optional sample data. Run this block only if you want initial products.
 INSERT INTO products
-  (manufacturer_id, name, sku, category, description, selling_price, unit_cost, quantity, reorder_level, status)
+  (manufacturer_id, name, sku, category, description, selling_price, discount_percent, unit_cost, quantity, reorder_level, status)
 VALUES
-  ((SELECT id FROM manufacturers WHERE name = 'ABC' LIMIT 1), 'Aurora Wireless Headphones', 'ELEC-AWH-01', 'Electronics', 'Over-ear noise cancelling headphones with 40h battery life and USB-C fast charging.', 149.99, 82.00, 132, 25, 'active'),
-  ((SELECT id FROM manufacturers WHERE name = 'BCD' LIMIT 1), 'Terra Stainless Water Bottle', 'HOME-TSB-22', 'Home & Kitchen', 'Insulated 750ml bottle keeping drinks cold for 24h and hot for 12h.', 24.50, 9.75, 18, 30, 'active'),
-  ((SELECT id FROM manufacturers WHERE name = 'CDE' LIMIT 1), 'Vertex Running Shoes', 'SPRT-VRS-09', 'Sports', 'Lightweight breathable mesh runners with responsive foam midsole.', 89.00, 41.20, 0, 15, 'active'),
-  ((SELECT id FROM manufacturers WHERE name = 'DEF' LIMIT 1), 'Lumen Desk Lamp', 'OFFC-LDL-14', 'Office', 'Dimmable LED desk lamp with wireless charging base and 3 color modes.', 59.99, 27.50, 64, 20, 'active'),
-  ((SELECT id FROM manufacturers WHERE name = 'EFI' LIMIT 1), 'Cloud Cotton T-Shirt', 'APRL-CCT-07', 'Apparel', 'Premium combed cotton crew-neck tee, pre-shrunk and tagless.', 19.99, 6.40, 240, 50, 'active')
+  ((SELECT id FROM manufacturers WHERE name = 'ABC' LIMIT 1), 'Aurora Wireless Headphones', 'ELEC-AWH-01', 'Electronics', 'Over-ear noise cancelling headphones with 40h battery life and USB-C fast charging.', 149.99, 0.00, 82.00, 132, 25, 'active'),
+  ((SELECT id FROM manufacturers WHERE name = 'BCD' LIMIT 1), 'Terra Stainless Water Bottle', 'HOME-TSB-22', 'Home & Kitchen', 'Insulated 750ml bottle keeping drinks cold for 24h and hot for 12h.', 24.50, 0.00, 9.75, 18, 30, 'active'),
+  ((SELECT id FROM manufacturers WHERE name = 'CDE' LIMIT 1), 'Vertex Running Shoes', 'SPRT-VRS-09', 'Sports', 'Lightweight breathable mesh runners with responsive foam midsole.', 89.00, 0.00, 41.20, 0, 15, 'active'),
+  ((SELECT id FROM manufacturers WHERE name = 'DEF' LIMIT 1), 'Lumen Desk Lamp', 'OFFC-LDL-14', 'Office', 'Dimmable LED desk lamp with wireless charging base and 3 color modes.', 59.99, 0.00, 27.50, 64, 20, 'active'),
+  ((SELECT id FROM manufacturers WHERE name = 'EFI' LIMIT 1), 'Cloud Cotton T-Shirt', 'APRL-CCT-07', 'Apparel', 'Premium combed cotton crew-neck tee, pre-shrunk and tagless.', 19.99, 0.00, 6.40, 240, 50, 'active')
 ON DUPLICATE KEY UPDATE
   manufacturer_id = VALUES(manufacturer_id),
   name = VALUES(name),
   category = VALUES(category),
   description = VALUES(description),
   selling_price = VALUES(selling_price),
+  discount_percent = VALUES(discount_percent),
   unit_cost = VALUES(unit_cost),
   quantity = VALUES(quantity),
   reorder_level = VALUES(reorder_level),
