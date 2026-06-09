@@ -8,7 +8,7 @@ A modern inventory management dashboard built with **Next.js 15**, **Tailwind CS
 - **Products** — compact product card grid with search, category/status filters, manufacturer filter, persistent delete, and 5-image gallery preview.
 - **Manufacturers** — add new manufacturers, rename existing manufacturers, and filter products by manufacturer.
 - **Add Product** — validated form with manufacturer selection, INR pricing, live margin calculation, status selector, and **multi-image upload (up to 5 images)**.
-- **Bulk Upload** — import products from `.csv`, `.xls`, or `.xlsx` for a selected manufacturer.
+- **Bulk Upload** — import products from `.csv`, `.xls`, or `.xlsx` for a selected manufacturer, with downloadable CSV/Excel templates.
 - **Inventory** — consolidated or manufacturer-specific table view with INR selling price, unit cost, stock value, status tabs, inline stock adjustment, and per-product editing.
 - **Persistent backend** — products are stored in MySQL, image files are stored privately in Linode Object Storage, and the UI displays temporary signed image URLs.
 
@@ -180,10 +180,17 @@ Expected response:
 Bulk upload columns:
 
 ```text
-name, sku, category, description, price, discountPercent, cost, quantity, reorderLevel, status
+name, sku, category, description, price, discountPercent, cost, quantity, reorderLevel, status, imageFolderPath, image1, image2, image3, image4, image5
 ```
 
 Supported status values are `active`, `draft`, and `archived`. Uploaded rows are assigned to the selected manufacturer.
+
+Template downloads are available from the Products page:
+
+- CSV template: `/api/products/template`
+- Excel template: `/api/products/template?format=xlsx`
+
+The image path columns are optional references for organizing product pictures by SKU or folder. Browser uploads cannot import local image files only from a text path; upload actual images through Add Product or the Inventory edit picture replacement option.
 
 ## API Routes
 
@@ -192,6 +199,7 @@ Supported status values are `active`, `draft`, and `archived`. Uploaded rows are
 - `PATCH /api/products/:id` — update product or inventory fields.
 - `DELETE /api/products/:id` — delete a product and its image metadata/files.
 - `POST /api/products/bulk` — bulk import `.csv`, `.xls`, or `.xlsx` products for a manufacturer.
+- `GET /api/products/template` — download the CSV/Excel bulk upload template.
 - `GET /api/manufacturers` — fetch manufacturers.
 - `POST /api/manufacturers` — create a manufacturer.
 - `PATCH /api/manufacturers/:id` — rename a manufacturer.

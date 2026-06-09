@@ -1,6 +1,7 @@
 "use client";
 
 /* eslint-disable @next/next/no-img-element */
+import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
 import { useInventory } from "@/context/InventoryContext";
 import { PageHeader } from "@/components/PageHeader";
@@ -237,7 +238,7 @@ export default function ProductsPage() {
           <p className="mb-2 text-sm font-semibold text-slate-800">
             Manufacturer controls
           </p>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto_auto_auto]">
             <select
               value={manufacturerId}
               onChange={(event) => {
@@ -263,6 +264,20 @@ export default function ProductsPage() {
               <UploadIcon className="h-4 w-4" />
               Bulk upload
             </button>
+            <Link
+              href="/api/products/template"
+              prefetch={false}
+              className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+            >
+              CSV template
+            </Link>
+            <Link
+              href="/api/products/template?format=xlsx"
+              prefetch={false}
+              className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+            >
+              Excel template
+            </Link>
             <input
               ref={uploadRef}
               type="file"
@@ -272,8 +287,14 @@ export default function ProductsPage() {
             />
           </div>
           <p className="mt-2 text-xs text-slate-400">
-            CSV/Excel columns: name, sku, category, description, price, cost,
-            quantity, reorderLevel, status.
+            CSV/Excel columns: name, sku, category, description, price,
+            discountPercent, cost, quantity, reorderLevel, status,
+            imageFolderPath, image1-image5.
+          </p>
+          <p className="mt-1 text-xs text-slate-400">
+            Image path columns help organize product pictures; actual images are
+            uploaded through Add Product or the Inventory edit picture
+            replacement option.
           </p>
           {bulkResult && (
             <p className="mt-2 text-sm font-medium text-emerald-600">
